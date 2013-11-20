@@ -199,6 +199,19 @@ def run_sm(sm, callback=None, val=None):
     return val
 
 
+def iter_sm(sm, evt_iter = None, callback = None):
+    val = None
+    while True:
+        val = sm.send(val)
+        if callback:
+            val = callback(sm, val)
+        pval = yield val
+        if pval is not None:
+            val = pval
+        elif evt_iter is not None:
+            val = (val[0], val[1], evt_iter.next())
+
+
 class TestStateMachine_1(unittest.TestCase):
 
     class Context(object):
@@ -295,6 +308,33 @@ class TestStateMachine_1(unittest.TestCase):
         val = run_sm(m, self.cb)
         self.assertEqual(ctx.trace, [('state1', None), ('state2', None),
                                      ('state3', None), ('state3', None)])
+
+
+    def test_2(self):
+        states = {
+            'state1': self.null_state,
+            'state2': self.example_state,
+            'state3': self.example_state,
+        }
+        transition_table = {
+            (None, None): 'state1',
+            ('state1', None): 'state2',
+            ('state2', None): 'state1',
+            ('state2', 'stay'): 'state2',
+            ('state2', 'back'): 'state1',
+            ('state2', 'next'): 'state3',
+            ('state3', 'back'): 'state2',
+            ('state3', 'next'): None,
+        }
+        sm = state_machine(TestStateMachine_1.Context(),
+                           lambda c,n,e: states[n](c,n,e),
+                           lambda c,t: transition_table.get(t, t[0]))
+        evt_list = [None, None, None, 'stay', 'next', None, 'next']
+        trace = [(val[1], val[2]) for val in iter_sm(sm, iter(evt_list))]
+        self.assertEqual(trace, [('state1', None), ('state2', None),
+                                 ('state1', None), ('state2', None),
+                                 ('state2', 'stay'), ('state3', None),
+                                 ('state3', None)])
 
 
 def load_tests(loader, tests, ignore):
