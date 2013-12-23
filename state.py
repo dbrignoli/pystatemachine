@@ -28,7 +28,7 @@ lightweight collection of useful functions to model state machines and can be
 dropped into a project's package.
 
 I wanted something that would be easy to integrate in applications, imposing
-as little as possible of the library's conventions on client code. I also
+as little as possible of the modules's conventions on client code. I also
 wanted an implementation that supported nesting and sequential composition
 of state machines.
 
@@ -54,8 +54,8 @@ state IDs
 
 >>> def state_ex1(ctx, state_id, evt):
 ...     while True:
-...         print evt, '->', state_id
-...         ctx, state_id, evt = yield (ctx, state_id, evt)
+...         ctx, vec, evt = yield (ctx, [state_id], evt)
+...         state_id = vec[-1]
 ...
 
 Wrap callback(), state_factory() and transition() in a class to show how to
@@ -78,33 +78,35 @@ use state_machine_from_class()
 ...
 ...     @staticmethod
 ...     def transition(ctx, t):
-...         # return the initial state
-...         if t == (None, None):
-...             return 'cool'
 ...         state_id, evt = t
-...         # the 'test' event does not cause a state change
-...         if evt == 'test':
-...             return state_id
-...         # pick the next state form the list
-...         idx = states.index(state_id)
-...         if evt == 'up':
-...             idx = min(idx+1, len(states)-1)
+...         if t == (None, None):
+...             # return the initial state
+...             idx = states.index('cool')
+...         elif evt == 'test':
+...             # the 'test' event does not cause a state change
+...             idx = states.index(state_id)
 ...         else:
-...             idx = max(idx-1, 0)
+...             # pick the next state form the list
+...             idx = states.index(state_id)
+...             if evt == 'up':
+...                 idx = min(idx+1, len(states)-1)
+...             else:
+...                 idx = max(idx-1, 0)
+...         print (state_id, evt), '->', states[idx]
 ...         return states[idx]
 ...
 
 The event_list is passed as 'context' for the state machine
 >>> sm = state_machine_from_class(StateMachineClassEx1)(event_list)
 >>> end_state = run_sm(sm, StateMachineClassEx1.callback)
-None -> cool
-up -> warm
-test -> warm
-up -> hot
-up -> hot
-down -> warm
+(None, None) -> cool
+('cool', 'up') -> warm
+('warm', 'test') -> warm
+('warm', 'up') -> hot
+('hot', 'up') -> hot
+('hot', 'down') -> warm
 >>> end_state
-([], 'warm', 'down')
+([], ['warm', 'warm'], 'down')
 
 State and state machines are generator functions. A state is not usually
 used directly but rather handled by a state machine like the one implemented
@@ -156,6 +158,101 @@ tuple.
 state_machine_from_class() returns a state machine instance initialised using
 the `state_factory` and `transition` methods of the class.
 
+============================================================================
+
+
+>>> class SimpleSM1(object):
+...     @staticmethod
+...     def state(ctx, state_id, evt):
+...         while True:
+...             ctx, state_id, evt = yield (ctx, ['-'], evt)
+...     @staticmethod
+...     def state_factory(ctx, name, evt):
+...         # Return the same implementaton for every state
+...         return SimpleSM1.state(ctx, name, evt)
+...     @staticmethod
+...     def transition(ctx, t):
+...         s, e = t
+...         tt = {
+...           (None, None): 's1',
+...           ('s1', 'n'): 's2',
+...           ('s2', 'n'): None,
+...         }
+...         return tt.get(t, s)
+... 
+>>> m1 = state_machine_from_class(SimpleSM1)
+>>> m2 = state_machine_from_class(SimpleSM1)
+>>> m3 = state_machine_from_class(SimpleSM1)
+>>> tt = {
+...     (None, None): 'm1',
+...     ('m1', None): 'm2',
+...     ('m2', None): 'm3',
+...     ('m3', None): None,
+... }
+>>> s = {
+...     'm1': m1,
+...     'm2': m2,
+...     'm3': m3,
+... }
+>>> s_f = lambda c,n,e: s[n](c,None,None)
+>>> t_f = lambda c,t: tt.get(t, t[0])
+>>> sm = state_machine(s_f, t_f)(None)
+>>> for val in iter_sm(sm, iter('n'*20)):
+...     print (val[1], val[2])
+...
+(['-', 's1', 'm1'], None)
+(['-', 's2', 'm1'], 'n')
+(['-', 's1', 'm2'], None)
+(['-', 's2', 'm2'], 'n')
+(['-', 's1', 'm3'], None)
+(['-', 's2', 'm3'], 'n')
+
+
+>>> tt = {
+...     (None, None): 'closed',
+...     ('closed', 'open'): 'opened',
+...     ('opened', 'close'): 'closed',
+...     ('closed', 'lock'): 'locked',
+...     ('locked', 'unlock'): 'closed',
+... }
+>>> s_f = lambda c,n,e: state_ex1(c, n, e)
+>>> t_f = lambda c,t: tt.get(t, t[0])
+>>> def print_transitions(iter):
+...     old_s = None
+...     while True:
+...         c, s, e = iter.next()
+...         print (old_s, e), '->', s[-1]
+...         old_s = s[-1]
+...         yield (c, s, e)
+...
+>>> e = ['lock', 'open', 'unlock', 'open', 'close']
+>>> sm = state_machine(s_f, t_f)(None)
+>>> l = [val for val in print_transitions(iter_sm(sm, iter(e)))]
+(None, None) -> closed
+('closed', 'lock') -> locked
+('locked', 'open') -> locked
+('locked', 'unlock') -> closed
+('closed', 'open') -> opened
+('opened', 'close') -> closed
+
+# Using run_sm()
+
+>>> def cb(sm, val):
+...     ctx, state_id, evt = val
+...     print (ctx['last_state'], evt), '->', state_id[-1]
+...     ctx['last_state'] = state_id[-1]
+...     return ctx, state_id, ctx['evt_src'].next()
+...
+>>> ctx = dict([('evt_src', iter(e)), ('last_state', None)])
+>>> sm = state_machine(s_f, t_f)(ctx)
+>>> val = run_sm(sm, cb)
+(None, None) -> closed
+('closed', 'lock') -> locked
+('locked', 'open') -> locked
+('locked', 'unlock') -> closed
+('closed', 'open') -> opened
+('opened', 'close') -> closed
+
 """
 
 
@@ -166,11 +263,11 @@ import doctest
 def state_machine(state_factory, transition_func):
     def sm(ctx, state_id=None, evt=None):
         state = None
-        print ctx, (state_id, evt)
+        #print ctx, (state_id, evt)
         try:
             while True:
                 next_state_id = transition_func(ctx, (state_id, evt))
-                print ctx, (state_id, evt), next_state_id
+                #print ctx, (state_id, evt), next_state_id
                 if next_state_id is None:
                     break
                 try:
@@ -179,13 +276,16 @@ def state_machine(state_factory, transition_func):
                             state.close()
                         state_id = next_state_id
                         state = state_factory(ctx, state_id, evt)
-                        ctx, state_id, evt = state.next()
+                        ctx, state_id_vec, evt = state.next()
                     else:
-                        ctx, state_id, evt = state.send((ctx, state_id, evt))
+                        ctx, state_id_vec, evt = state.send((ctx, state_id_vec[:-1], evt))
                 except StopIteration:
                     evt = None
                     continue
-                ctx, state_id, evt = yield (ctx, state_id, evt)
+                ctx, state_id_vec, evt = yield (ctx, state_id_vec + [state_id], evt)
+                state_id = state_id_vec[-1]
+                if state_id is None:
+                    break
         finally:
             if state is not None:
                 state.close()
@@ -218,130 +318,6 @@ def iter_sm(sm, evt_iter = None, callback = None):
             val = pval
         elif evt_iter is not None:
             val = (val[0], val[1], evt_iter.next())
-
-
-class TestStateMachine_1(unittest.TestCase):
-
-    class Context(object):
-        states = None
-        done = False
-        transition_table = None
-        evt_list = list()
-        trace = list()
-
-    @staticmethod
-    def non_generator(ctx, state_id="non_generator", evt=None):
-        pass
-
-    @staticmethod
-    def null_state(ctx, state_id="null_state", evt=''):
-        yield ctx, state_id, ''
-
-    @staticmethod
-    def example_state(ctx, state_id="example_state", evt=None):
-        try:
-            while not ctx.done:
-                ctx, state_id, evt = yield (ctx, state_id, evt)
-        finally:
-            ctx.done = False
-
-    @staticmethod
-    def state_factory(ctx, name, evt):
-        f = ctx.states[name]
-        return f(ctx, name, evt)
-
-    @staticmethod
-    def transition_func(ctx, t):
-        state_id, evt = t
-        return ctx.transition_table.get(t, state_id)
-        if evt is not None:
-            return ctx.transition_table.get(t, state_id)
-        else:
-            return ctx.transition_table.get(t, None)
-
-    def cb(self, sm, val):
-        ctx, state_id, evt = val
-        ctx.trace.append((state_id, evt))
-        if len(ctx.evt_list) > 0:
-            return ctx, state_id, ctx.evt_list.pop(0)
-        else:
-            raise StopIteration()
-
-    def test_nongen(self):
-        ctx = TestStateMachine_1.Context()
-        ctx.states = {
-            'state1': self.non_generator,
-        }
-        ctx.transition_table = {(None, None): 'state1'}
-        m = state_machine(self.state_factory, self.transition_func)(ctx)
-        self.assertRaises(AttributeError, m.next)
-
-    def test_1(self):
-        ctx = TestStateMachine_1.Context()
-        ctx.states = {
-            'state1': self.null_state,
-            'state2': self.example_state,
-            'state3': self.example_state,
-        }
-        ctx.transition_table = {
-            (None, None): 'state1',
-            ('state1', ''): 'state2',
-            ('state2', ''): 'state1',
-            ('state2', 'stay'): 'state2',
-            ('state2', 'back'): 'state1',
-            ('state2', 'next'): 'state3',
-            ('state3', 'back'): 'state2',
-            ('state3', 'next'): None,
-        }
-        ctx.evt_list = ['', '', '', 'stay']
-        m = state_machine(self.state_factory, self.transition_func)(ctx)
-        val = run_sm(m, self.cb)
-        ctx.evt_list = ['stay']
-        run_sm(m, self.cb, val)
-        self.assertEqual(ctx.trace, [('state1', ''), ('state2', ''),
-                                     ('state1', ''), ('state2', ''),
-                                     ('state2', 'stay'), ('state2', 'stay'),
-                                     ('state2', 'stay')])
-        ctx.trace = []
-        ctx.evt_list = ['', '', '', 'stay']
-        m = state_machine(self.state_factory, self.transition_func)(ctx)
-        val = run_sm(m, self.cb)
-        ctx.done = True
-        ctx.evt_list = ['stay']
-        run_sm(m, self.cb, val)
-        self.assertEqual(ctx.trace, [('state1', ''), ('state2', ''),
-                                     ('state1', ''), ('state2', ''),
-                                     ('state2', 'stay')])
-
-        ctx.trace = []
-        ctx.evt_list = ['', 'next', '', 'next']
-        m = state_machine(self.state_factory, self.transition_func)(ctx)
-        val = run_sm(m, self.cb)
-        self.assertEqual(ctx.trace, [('state1', ''), ('state2', ''),
-                                     ('state3', 'next'), ('state3', '')])
-
-
-    def test_2(self):
-        states = {
-            'state1': self.null_state,
-            'state2': self.example_state,
-            'state3': self.example_state,
-        }
-        transition_table = {
-            (None, None): 'state1',
-            ('state1', ''): 'state2',
-            ('state2', ''): 'state1',
-            ('state2', 'stay'): 'state2',
-            ('state2', 'back'): 'state1',
-            ('state2', 'next'): 'state3',
-            ('state3', 'back'): 'state2',
-            ('state3', 'next'): None,
-        }
-        state_f = lambda c,n,e: states[n](c,n,e)
-        trans_f = lambda c,t: transition_table.get(t, t[0])
-        sm = state_machine(state_f, trans_f)(TestStateMachine_1.Context())
-        evt_list = ['', '', '', 'stay', 'next', '', 'next']
-        trace = [(val[1], val[2]) for val in iter_sm(sm, iter(evt_list))]
 
 
 def load_tests(loader, tests, ignore):
