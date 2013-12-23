@@ -55,7 +55,6 @@ state IDs
 >>> def state_ex1(ctx, state_id, evt):
 ...     while True:
 ...         ctx, vec, evt = yield (ctx, [state_id], evt)
-...         state_id = vec[-1]
 ...
 
 Wrap callback(), state_factory() and transition() in a class to show how to
@@ -278,12 +277,11 @@ def state_machine(state_factory, transition_func):
                         state = state_factory(ctx, state_id, evt)
                         ctx, state_id_vec, evt = state.next()
                     else:
-                        ctx, state_id_vec, evt = state.send((ctx, state_id_vec[:-1], evt))
+                        ctx, state_id_vec, evt = state.send((ctx, state_id, evt))
                 except StopIteration:
                     evt = None
                     continue
                 ctx, state_id_vec, evt = yield (ctx, state_id_vec + [state_id], evt)
-                state_id = state_id_vec[-1]
                 if state_id is None:
                     break
         finally:
