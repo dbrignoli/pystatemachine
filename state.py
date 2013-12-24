@@ -352,9 +352,8 @@ the `state_factory` and `transition` methods of the class.
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
 >>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
 0 2 + 3 5 - 1 4 0 
->>> lvl1_sm = state_machine(s_f, t_f)(ctx)
 >>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
->>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
+>>> l = [val for val in iter_sm(lvl1_sm, iter(e), val = l[-1])]
 0 2 * 3 6 / 2 3 + 1 13 16 
 """
 
@@ -409,8 +408,7 @@ def run_sm(sm, callback=None, val=None):
     return val
 
 
-def iter_sm(sm, evt_iter = None, callback = None):
-    val = None
+def iter_sm(sm, evt_iter = None, callback = None, val = None):
     while True:
         val = sm.send(val)
         if callback:
