@@ -259,96 +259,114 @@ the `state_factory` and `transition` methods of the class.
 >>> def display(str_or_int):
 ...     sys.stdout.write(str(str_or_int) + ' ')
 ...
->>> def op_nd1(c, s, e):
-...     if e is not None:
-...         c['op_nd1'] = int(e)
-...     while True:
-...         display(c['op_nd1'])
-...         c, _, e = yield (c, [s], e)
-...         c['op_nd1'] = c['op_nd1']*10 + int(e)
+>>> class PocketCalcInnerSM(object):
+... 
+...     tt = {
+...         ('on', None): 'op_nd1',
+...         ('op_nd1', '/*+-'): 'op_tor',
+...         ('op_tor', '0123456789.'): 'op_nd2',
+...         ('op_nd2', '/*+-'): 'op_tor',
+...         ('op_nd2', '='): 'result',
+...         ('result', '/*+-'): 'op_tor',
+...         ('result', '0123456789.'): 'op_nd1',
+...     }
 ...
->>> def reset(c, s, e):
-...     c['op_nd1'] = 0
-...     c['op_nd2'] = 0
-...     c['op_tor'] = None
-...     return
-...     # yield statement is necessary to make this a generator
-...     c, _, e = yield (c, [s], e)
+...     @classmethod
+...     def transition(cls, c, t):
+...         s_id = cls.tt.get(t, None)
+...         if s_id is None:
+...             for k,v in cls.tt.items():
+...                 if k[0] == t[0] and t[1] in k[1]:
+...                     s_id = v
+...         if s_id is None:
+...             return t[0]
+...         return s_id
 ...
->>> def op_nd2(c, s, e):
-...     c['op_nd2'] = int(e)
-...     while True:
-...         display(c['op_nd2'])
-...         c, _, e = yield (c, [s], e)
-...         c['op_nd2'] = c['op_nd2']*10 + int(e)
+...     @classmethod
+...     def state_factory(cls, c, n, e):
+...         return getattr(cls, n)(c,n,e)
 ...
->>> def op_tor(c, s, e):
-...     while True:
-...         if c['op_tor'] is not None:
-...             c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
+...     @staticmethod
+...     def op_nd1(c, s, e):
+...         if e is not None:
+...             c['op_nd1'] = int(e)
+...         while True:
 ...             display(c['op_nd1'])
-...         display(e)
-...         if e == '+':
-...             c['op_tor'] = operator.add
-...         elif e == '-':
-...             c['op_tor'] = operator.sub
-...         elif e == '/':
-...             c['op_tor'] = operator.div
-...         elif e == '*':
-...             c['op_tor'] = operator.mul
-...         else:
-...             raise StopIteration
+...             c, _, e = yield (c, [s], e)
+...             c['op_nd1'] = c['op_nd1']*10 + int(e)
+...
+...     @staticmethod
+...     def op_nd2(c, s, e):
+...         c['op_nd2'] = int(e)
+...         while True:
+...             display(c['op_nd2'])
+...             c, _, e = yield (c, [s], e)
+...             c['op_nd2'] = c['op_nd2']*10 + int(e)
+...
+...     @staticmethod
+...     def op_tor(c, s, e):
+...         while True:
+...             if c['op_tor'] is not None:
+...                 c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
+...                 display(c['op_nd1'])
+...             display(e)
+...             if e == '+':
+...                 c['op_tor'] = operator.add
+...             elif e == '-':
+...                 c['op_tor'] = operator.sub
+...             elif e == '/':
+...                 c['op_tor'] = operator.div
+...             elif e == '*':
+...                 c['op_tor'] = operator.mul
+...             else:
+...                 raise StopIteration
+...             c, _, e = yield (c, [s], e)
+...
+...     @staticmethod
+...     def result(c, s, e):
+...         c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
+...         c['op_tor'] = None
+...         while True:
+...             display(c['op_nd1'])
+...             c, _, e = yield (c, [s], e)
+...
+...
+>>> class PocketCalcOuterSM(object):
+...
+...     tt = {
+...         (None, None): 'off',
+...         ('off', 'p-on'): 'reset',
+...         ('on', 'p-on'): 'reset',
+...         ('reset', None): 'on',
+...         ('on', 'p-off'): 'off',
+...     }
+...
+...     @classmethod
+...     def transition(cls, c, t):
+...         return cls.tt.get(t, t[0])
+...
+...     @classmethod
+...     def state_factory(cls, c, n, e):
+...         if n == 'on':
+...             return state_machine_from_class(PocketCalcInnerSM)(c,n,e)
+...         return getattr(cls, n)(c,n,e)
+...
+...     @staticmethod
+...     def off(c, s, e):
+...         while True:
+...             c, _, e = yield (c, [s], e)
+...
+...     @staticmethod
+...     def reset(c, s, e):
+...         c['op_nd1'] = 0
+...         c['op_nd2'] = 0
+...         c['op_tor'] = None
+...         return
+...         # yield statement is necessary to make this a generator
 ...         c, _, e = yield (c, [s], e)
 ...
->>> def result(c, s, e):
-...     c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
-...     c['op_tor'] = None
-...     while True:
-...         display(c['op_nd1'])
-...         c, _, e = yield (c, [s], e)
-...
->>> calc_tl2 = {
-...     ('on', None): 'op_nd1',
-...     ('op_nd1', '/*+-'): 'op_tor',
-...     ('op_tor', '0123456789.'): 'op_nd2',
-...     ('op_nd2', '/*+-'): 'op_tor',
-...     ('op_nd2', '='): 'result',
-...     ('result', '/*+-'): 'op_tor',
-...     ('result', '0123456789.'): 'op_nd1',
-... }
->>> def calc_tf_l2(c, t):
-...     s_id = calc_tl2.get(t, None)
-...     if s_id is None:
-...         for k,v in calc_tl2.items():
-...             if k[0] == t[0] and t[1] in k[1]:
-...                 s_id = v
-...     if s_id is None:
-...         return t[0]
-...     return s_id
->>> calc_sl2 = {
-...     'op_nd1': op_nd1,
-...     'op_tor': op_tor,
-...     'op_nd2': op_nd2,
-...     'result': result,
-... }
->>> calc_sf_l2 = lambda c,n,e: calc_sl2.get(n)(c,n,e)
->>> lvl2_sm = state_machine(calc_sf_l2, calc_tf_l2)
->>> calc_tl1 = {
-...     (None, None): 'off',
-...     ('off', 'p-on'): 'reset',
-...     ('on', 'p-on'): 'reset',
-...     ('reset', None): 'on',
-...     ('on', 'p-off'): 'off',
-... }
->>> calc_sl1 = {
-...     'off': state_ex1,
-...     'reset': reset,
-...     'on': lvl2_sm,
-... }
->>> s_f = lambda c,n,e: calc_sl1.get(n)(c,n,e)
->>> t_f = lambda c,t: calc_tl1.get(t, t[0])
 >>> ctx = dict()
->>> lvl1_sm = state_machine(s_f, t_f)(ctx)
+>>> lvl1_sm = state_machine_from_class(PocketCalcOuterSM)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
 >>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
 0 2 + 3 5 - 1 4 0 
