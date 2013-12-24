@@ -255,26 +255,30 @@ the `state_factory` and `transition` methods of the class.
 # Hierarchical state machine example: pocket calculator
 
 >>> import operator
+>>> import sys
+>>> def display(str_or_int):
+...     sys.stdout.write(str(str_or_int) + ' ')
+...
 >>> def op_nd1(c, s, e):
-...     c['op_nd1'] = int(e)
+...     if e is not None:
+...         c['op_nd1'] = int(e)
 ...     while True:
-...         print c['op_nd1']
+...         display(c['op_nd1'])
 ...         c, _, e = yield (c, [s], e)
 ...         c['op_nd1'] = c['op_nd1']*10 + int(e)
 ...
->>> def op_nd1_reset(c, s, e):
+>>> def reset(c, s, e):
 ...     c['op_nd1'] = 0
 ...     c['op_nd2'] = 0
 ...     c['op_tor'] = None
-...     while True:
-...         print c['op_nd1']
-...         c, _, e = yield (c, [s], e)
-...         c['op_nd1'] = c['op_nd1']*10 + int(e)
+...     return
+...     # yield statement is necessary to make this a generator
+...     c, _, e = yield (c, [s], e)
 ...
 >>> def op_nd2(c, s, e):
 ...     c['op_nd2'] = int(e)
 ...     while True:
-...         print c['op_nd2']
+...         display(c['op_nd2'])
 ...         c, _, e = yield (c, [s], e)
 ...         c['op_nd2'] = c['op_nd2']*10 + int(e)
 ...
@@ -282,8 +286,8 @@ the `state_factory` and `transition` methods of the class.
 ...     while True:
 ...         if c['op_tor'] is not None:
 ...             c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
-...             print c['op_nd1']
-...         print e
+...             display(c['op_nd1'])
+...         display(e)
 ...         if e == '+':
 ...             c['op_tor'] = operator.add
 ...         elif e == '-':
@@ -300,23 +304,22 @@ the `state_factory` and `transition` methods of the class.
 ...     c['op_nd1'] = c['op_tor'](c['op_nd1'], c['op_nd2'])
 ...     c['op_tor'] = None
 ...     while True:
-...         print c['op_nd1']
+...         display(c['op_nd1'])
 ...         c, _, e = yield (c, [s], e)
 ...
 >>> calc_tl2 = {
-...     ('on', 'p-on'): 'op_nd1_reset',
-...     ('op_nd1_reset', '/*+-'): 'op_tor',
+...     ('on', 'p-on'): 'reset',
+...     ('reset', None): 'op_nd1',
 ...     ('op_nd1', '/*+-'): 'op_tor',
 ...     ('op_tor', '0123456789.'): 'op_nd2',
 ...     ('op_nd2', '/*+-'): 'op_tor',
 ...     ('op_nd2', '='): 'result',
 ...     ('result', '/*+-'): 'op_tor',
 ...     ('result', '0123456789.'): 'op_nd1',
-...     ('op_nd1_reset', 'p-on'): 'op_nd1_reset',
-...     ('op_nd1', 'p-on'): 'op_nd1_reset',
-...     ('op_tor', 'p-on'): 'op_nd1_reset',
-...     ('op_nd2', 'p-on'): 'op_nd1_reset',
-...     ('result', 'p-on'): 'op_nd1_reset',
+...     ('op_nd1', 'p-on'): 'reset',
+...     ('op_tor', 'p-on'): 'reset',
+...     ('op_nd2', 'p-on'): 'reset',
+...     ('result', 'p-on'): 'reset',
 ... }
 >>> def calc_tf_l2(c, t):
 ...     s_id = calc_tl2.get(t, None)
@@ -328,7 +331,7 @@ the `state_factory` and `transition` methods of the class.
 ...         return t[0]
 ...     return s_id
 >>> calc_sl2 = {
-...     'op_nd1_reset': op_nd1_reset,
+...     'reset': reset,
 ...     'op_nd1': op_nd1,
 ...     'op_tor': op_tor,
 ...     'op_nd2': op_nd2,
@@ -340,8 +343,6 @@ the `state_factory` and `transition` methods of the class.
 ...     (None, None): 'off',
 ...     ('off', 'p-on'): 'on',
 ...     ('on', 'p-off'): 'off',
-...     ('on', None): 'err',
-...     ('err', 'p-off'): 'off',
 ... }
 >>> calc_sl1 = {
 ...     'off': state_ex1,
@@ -353,7 +354,7 @@ the `state_factory` and `transition` methods of the class.
 >>> lvl1_sm = state_machine(s_f, t_f)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
 >>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
-0 2 + 3 5 - 1 4 0
+0 2 + 3 5 - 1 4 0 
 """
 
 
