@@ -366,12 +366,12 @@ the `state_factory` and `transition` methods of the class.
 ...         c, _, e = yield (c, [s], e)
 ...
 >>> ctx = dict()
->>> lvl1_sm = state_machine_from_class(PocketCalcOuterSM)(ctx)
+>>> pc_sm = state_machine_from_class(PocketCalcOuterSM)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
->>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
+>>> l = [val for val in iter_sm(pc_sm, iter(e))]
 0 2 + 3 5 - 1 4 0 
 >>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
->>> l = [val for val in iter_sm(lvl1_sm, iter(e), val = l[-1])]
+>>> l = [val for val in iter_sm(pc_sm, iter(e), val = l[-1])]
 0 2 * 3 6 / 2 3 + 1 13 16 
 """
 
