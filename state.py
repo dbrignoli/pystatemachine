@@ -308,18 +308,13 @@ the `state_factory` and `transition` methods of the class.
 ...         c, _, e = yield (c, [s], e)
 ...
 >>> calc_tl2 = {
-...     ('on', 'p-on'): 'reset',
-...     ('reset', None): 'op_nd1',
+...     ('on', None): 'op_nd1',
 ...     ('op_nd1', '/*+-'): 'op_tor',
 ...     ('op_tor', '0123456789.'): 'op_nd2',
 ...     ('op_nd2', '/*+-'): 'op_tor',
 ...     ('op_nd2', '='): 'result',
 ...     ('result', '/*+-'): 'op_tor',
 ...     ('result', '0123456789.'): 'op_nd1',
-...     ('op_nd1', 'p-on'): 'reset',
-...     ('op_tor', 'p-on'): 'reset',
-...     ('op_nd2', 'p-on'): 'reset',
-...     ('result', 'p-on'): 'reset',
 ... }
 >>> def calc_tf_l2(c, t):
 ...     s_id = calc_tl2.get(t, None)
@@ -331,7 +326,6 @@ the `state_factory` and `transition` methods of the class.
 ...         return t[0]
 ...     return s_id
 >>> calc_sl2 = {
-...     'reset': reset,
 ...     'op_nd1': op_nd1,
 ...     'op_tor': op_tor,
 ...     'op_nd2': op_nd2,
@@ -341,11 +335,14 @@ the `state_factory` and `transition` methods of the class.
 >>> lvl2_sm = state_machine(calc_sf_l2, calc_tf_l2)
 >>> calc_tl1 = {
 ...     (None, None): 'off',
-...     ('off', 'p-on'): 'on',
+...     ('off', 'p-on'): 'reset',
+...     ('on', 'p-on'): 'reset',
+...     ('reset', None): 'on',
 ...     ('on', 'p-off'): 'off',
 ... }
 >>> calc_sl1 = {
 ...     'off': state_ex1,
+...     'reset': reset,
 ...     'on': lvl2_sm,
 ... }
 >>> s_f = lambda c,n,e: calc_sl1.get(n)(c,n,e)
@@ -355,6 +352,10 @@ the `state_factory` and `transition` methods of the class.
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
 >>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
 0 2 + 3 5 - 1 4 0 
+>>> lvl1_sm = state_machine(s_f, t_f)(ctx)
+>>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
+>>> l = [val for val in iter_sm(lvl1_sm, iter(e))]
+0 2 * 3 6 / 2 3 + 1 13 16 
 """
 
 
