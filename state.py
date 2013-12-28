@@ -1,31 +1,16 @@
+#!/usr/bin/env python
 
-# Copyright (c) 2013, Delio Brignoli
-# All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met: 
-# 
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer. 
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution. 
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""A state machine module based on generator functions
 
-"""
+.. codeauthor:: Delio Brignoli <brignoli.delio@gmail.com>
+
+
+Introduction
+============
+
 Yet another `state machines with generators` module. It is intended to be a
 lightweight collection of useful functions to model state machines and can be
-dropped into a project's package.
+dropped into your project's package.
 
 I wanted something that would be easy to integrate in applications, imposing
 as little as possible of the modules's conventions on client code. I also
@@ -37,9 +22,13 @@ state and deal with entry/exit to/from a state without requiring an object
 oriented abstraction. An application is free to use this module's functions
 within classes but it does not (and should not) have to.
 
-The state_machine_from_class() is a convenience function for creating a state
-machine from a class that encapsulates the state factory and state transition
-functions.
+The state_machine_from_class() function can be used to create
+a state machine instance form a class encapsulating the state factory and
+state transition functions.
+
+
+Tutorial
+========
 
 Let's start by looking at a simple usage example:
 
@@ -129,9 +118,9 @@ yield (ctx, state_id, evt)``.
 ...             ctx, state_id, evt = yield (ctx, state_id, evt)
 ...
 ...             #
-...             # code that executes every time an event is received in this state
+...             # code that executes every time an event is received
 ...             #
-... 
+...
 ...     finally:
 ...         # code executed when exiting the state
 ...         pass
@@ -178,7 +167,7 @@ the `state_factory` and `transition` methods of the class.
 ...           ('s2', 'n'): None,
 ...         }
 ...         return tt.get(t, s)
-... 
+...
 >>> m1 = state_machine_from_class(SimpleSM1)
 >>> m2 = state_machine_from_class(SimpleSM1)
 >>> m3 = state_machine_from_class(SimpleSM1)
@@ -257,10 +246,10 @@ the `state_factory` and `transition` methods of the class.
 >>> import operator
 >>> import sys
 >>> def display(str_or_int):
-...     sys.stdout.write(str(str_or_int) + ' ')
+...     sys.stdout.write(' ' + str(str_or_int))
 ...
 >>> class PocketCalcInnerSM(object):
-... 
+...
 ...     tt = {
 ...         ('on', None): 'op_nd1',
 ...         ('op_nd1', '/*+-'): 'op_tor',
@@ -369,10 +358,10 @@ the `state_factory` and `transition` methods of the class.
 >>> pc_sm = state_machine_from_class(PocketCalcOuterSM)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
 >>> l = [val for val in iter_sm(pc_sm, iter(e))]
-0 2 + 3 5 - 1 4 0 
+ 0 2 + 3 5 - 1 4 0
 >>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
 >>> l = [val for val in iter_sm(pc_sm, iter(e), val = l[-1])]
-0 2 * 3 6 / 2 3 + 1 13 16 
+ 0 2 * 3 6 / 2 3 + 1 13 16
 """
 
 
@@ -381,6 +370,7 @@ import doctest
 
 
 def state_machine(state_factory, transition_func):
+    """Return a state machine generator function."""
     def sm(ctx, state_id=None, evt=None):
         state = None
         #print ctx, (state_id, evt)
@@ -396,13 +386,13 @@ def state_machine(state_factory, transition_func):
                             state.close()
                         state_id = next_state_id
                         state = state_factory(ctx, state_id, evt)
-                        ctx, state_id_vec, evt = state.next()
+                        ctx, s_id_vec, evt = state.next()
                     else:
-                        ctx, state_id_vec, evt = state.send((ctx, state_id, evt))
+                        ctx, s_id_vec, evt = state.send((ctx, state_id, evt))
                 except StopIteration:
                     evt = None
                     continue
-                ctx, _, evt = yield (ctx, state_id_vec + [state_id], evt)
+                ctx, _, evt = yield (ctx, s_id_vec + [state_id], evt)
                 if state_id is None:
                     break
         finally:
@@ -412,10 +402,34 @@ def state_machine(state_factory, transition_func):
 
 
 def state_machine_from_class(cls):
+    """Create a state machine from a class.
+
+    Creates a state machine from a class that encapsulates the state
+    factory and state transition functions declared respectively as
+    `state_factory` and `transition` static methods.
+
+    """
     return state_machine(cls.state_factory, cls.transition)
 
 
 def run_sm(sm, callback=None, val=None):
+    """Run state machine to completion.
+
+    The state machine passed as first parameter is run (to completion
+    unless the optional callback raises StopIteration). An optional initial
+    value can be passed to the state machine (defaults to None) and the
+    function returns the last value returned by the state machine.
+
+    Storing the value returned by the function and passing it to the next
+    invokation of the function allows to resume execution of a state
+    machine that was halted by the optional callback (by raising
+    StopIteration)
+
+    The callback function receives the state machine and last returned
+    value as parameters and must return a value that will be passed to
+    the next round of the state machine execution.
+
+    """
     try:
         while True:
             val = sm.send(val)
@@ -426,7 +440,24 @@ def run_sm(sm, callback=None, val=None):
     return val
 
 
-def iter_sm(sm, evt_iter = None, callback = None, val = None):
+def iter_sm(sm, evt_iter=None, callback=None, val=None):
+    """Return iterator for a state machine.
+
+    The iterator returned by this function consumes an event from the
+    `evt_iter` iterator and feeds it into the state machine for each
+    iteration.
+
+    The optional callback parameter is called for each iteration and can
+    modify the value passed into the next round of the state machine
+    execution. Execution can be halted by the callback by raising
+    StopIteration.
+
+    An optional initial value can be passed to the state machine
+    (defaults to None) and can be used to resume execution of a state
+    machine that was previously halted by the callback or stopped because
+    the `evt_iter` iterator was exhausted.
+
+    """
     while True:
         val = sm.send(val)
         if callback:
