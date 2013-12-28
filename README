@@ -1,4 +1,8 @@
 
+A state machine module based on generator functions
+
+Get the source `here <http://github.com/dbrignoli/pystatemachine>`_.
+
 Introduction
 ============
 

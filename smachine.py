@@ -2,7 +2,8 @@
 
 """A state machine module based on generator functions
 
-The source is available `here <http://github.com/dbrignoli/pystatemachine>`_.
+The complete source is available `here 
+<http://github.com/dbrignoli/pystatemachine>`_.
 
 .. codeauthor:: Delio Brignoli <brignoli.delio@gmail.com>
 
