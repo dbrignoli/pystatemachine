@@ -1,10 +1,11 @@
 
+===================================================
 A state machine module based on generator functions
+===================================================
 
-Get the source `here <http://github.com/dbrignoli/pystatemachine>`_.
 
 Introduction
-============
+------------
 
 Yet another `state machines with generators` module. It is intended to be a
 lightweight collection of useful functions to model state machines and can be
@@ -24,9 +25,11 @@ The state_machine_from_class() function can be used to create
 a state machine instance form a class encapsulating the state factory and
 state transition functions.
 
+Get the source `here <http://github.com/dbrignoli/pystatemachine>`_.
+
 
 Overview
-========
+--------
 
 State and state machines are generator functions. A state is not usually
 used directly but rather handled by a state machine like the one implemented
@@ -79,7 +82,7 @@ the `state_factory` and `transition` methods of the class.
 
 
 Tutorial
-========
+--------
 
 Let's start by looking at a simple usage example. An example state is defined
 as follows:
