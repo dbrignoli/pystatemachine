@@ -13,7 +13,7 @@ import doctest
 __author__ = 'Delio Brignoli'
 __copyright__ = 'Copyright 2013, Delio Brignoli'
 __credits__ = ['Delio Brignoli']
-__license__ = '2 Clauses BSD'
+__license__ = '2-clause BSD'
 __version__ = '0.1'
 __maintainer__ = 'Delio Brignoli'
 __email__ = 'brignoli.delio@gmail.com'
