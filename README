@@ -136,6 +136,7 @@ Exiting state: 4
 Define a list of states and some events we want to occur in sequence. The
 ``test`` event does not effect the state, while ``up`` and ``down`` change the the
 state to the next one up or down respectively.
+
 >>> states = ['freezing', 'cold', 'cool', 'warm', 'hot']
 >>> event_list = ['up', 'test', 'up', 'up', 'down']
 
@@ -186,6 +187,7 @@ use state_machine_from_class()
 ...
 
 The event_list is passed as 'context' for the state machine
+
 >>> sm = smm.state_machine_from_class(StateMachineClassEx1)(event_list)
 >>> end_state = smm.run_sm(sm, StateMachineClassEx1.callback)
 (None, None) -> cool
