@@ -9,6 +9,17 @@
 import unittest
 import doctest
 
+
+__author__ = 'Delio Brignoli'
+__copyright__ = 'Copyright 2013, Delio Brignoli'
+__credits__ = ['Delio Brignoli']
+__license__ = '2 Clauses BSD'
+__version__ = '0.1'
+__maintainer__ = 'Delio Brignoli'
+__email__ = 'brignoli.delio@gmail.com'
+__status__ = 'Development'
+
+
 def state_machine(state_factory, transition_func):
     """Return a state machine generator function."""
     def sm(ctx, state_id=None, evt=None):
