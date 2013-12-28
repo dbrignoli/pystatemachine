@@ -8,28 +8,127 @@ dropped into your project's package.
 
 I wanted something that would be easy to integrate in applications, imposing
 as little as possible of the modules's conventions on client code. I also
-wanted an implementation that supported nesting and sequential composition
-of state machines.
+wanted an implementation that supported hierarchical and sequential
+composition of state machines.
 
 Why use generators? Because they are suspend-able functions, they retain
-state and deal with entry/exit to/from a state without requiring an object
-oriented abstraction. An application is free to use this module's functions
-within classes but it does not (and should not) have to.
+state and support entry/exit actions without requiring an object oriented
+abstraction. An application is free to use this module's functions within
+classes but it does not (and should not) have to.
 
 The state_machine_from_class() function can be used to create
 a state machine instance form a class encapsulating the state factory and
 state transition functions.
 
 
+Overview
+========
+
+State and state machines are generator functions. A state is not usually
+used directly but rather handled by a state machine like the one implemented
+in state_machine(). A state machine is a state that handles state transitions
+and dispaches execution to the currently active state. This way states can be
+nested.
+
+The skeleton_state() below shows a skeleton implementation
+for a typical state. A state accepts 3 parameters: an application specific
+context, an unique identifier for the state in the transition table
+of the parent state machine and an event. All yield statements in a state
+must yield the same 3 parameters and update the 3 parameters with the value
+returned by the yield statement like this ``ctx, state_id, evt =
+yield (ctx, state_id, evt)``.
+
+>>> def skeleton_state(ctx, state_id, evt):
+...     # code executed when entering the state
+...     try:
+...         while True:
+...             # return control to the parent state machine
+...             ctx, state_id, evt = yield (ctx, [state_id], evt)
+...             #
+...             # code that executes every time an event is received
+...             #
+...
+...     finally:
+...         # code executed when exiting the state
+...         pass
+
+The state_machine() generator accepts an application specific context which
+will be passed to each state, a state factory function called each time
+an instance of a state is created (this occurs right before entering the
+state) and a transition function called to retrieve the unique ID of
+the next state given the current state ID and the event. The transition
+function is first called with a (state_id, event) tuple of (None, None)
+in order to retrieve the initial state ID. When the transition function
+returns None the state machine has reached its final state and stops.
+
+run_sm() is used to run a state machine to completion. The optional callback
+function parameter is invoked for each event and the optional val parameter
+is useful for resuming execution of a state machine. The callback function
+must return a tuple containing the context, state ID and event parameters,
+the values returned can be different from the values it was passed.
+The callback function can raise StopIteration() to indicate that the run_sm()
+should exit. run_sm() returns the last valid context, state ID and event
+tuple.
+
+state_machine_from_class() returns a state machine instance initialised using
+the `state_factory` and `transition` methods of the class.
+
+
 Tutorial
 ========
 
-Let's start by looking at a simple usage example:
+Let's start by looking at a simple usage example. An example state is defined
+as follows:
+
+>>> import smachine as smm
+>>> def state_ex2(ctx, state_id, evt):
+...     print "Entering state:", state_id
+...     try:
+...         while True:
+...             ctx, _, evt = yield (ctx, [state_id], evt)
+...             print "Received event", evt, "while in", state_id
+...     finally:
+...         print "Exiting state:", state_id
+
+The state factory function always returns an instance of `state_ex2` and
+the transition function moves between states (identified by increasing
+integers) when the 'n' event is received, stays in the current state when
+the 'x' event is received and terminates when 'e' is received
+
+>>> s_f = lambda c,n,e: state_ex2(c,n,e)
+>>> def t_f(c, t):
+...     if t[0] is None:
+...         return 1
+...     if t[1] == 'x':
+...         return t[0]
+...     elif t[1] == 'e':
+...         return None
+...     else:
+...         return t[0] + 1
+...
+
+The state machine is created passing a null context
+
+>>> sm = smm.state_machine(s_f, t_f)(None)
+
+and then run using the 'xnxnxne' sequence of events
+
+>>> l = list(smm.iter_sm(sm, iter('xn'*3+'e')))
+Entering state: 1
+Received event x while in 1
+Exiting state: 1
+Entering state: 2
+Received event x while in 2
+Exiting state: 2
+Entering state: 3
+Received event x while in 3
+Exiting state: 3
+Entering state: 4
+Exiting state: 4
 
 Define a list of states and some events we want to occur in sequence. The
 'test' event does not effect the state, while 'up and 'down' change the the
 state to the next one up or down respectively.
->>> import smachine as smm
 >>> states = ['freezing', 'cold', 'cool', 'warm', 'hot']
 >>> event_list = ['up', 'test', 'up', 'up', 'down']
 
@@ -90,56 +189,6 @@ The event_list is passed as 'context' for the state machine
 ('hot', 'down') -> warm
 >>> end_state
 ([], ['warm', 'warm'], 'down')
-
-State and state machines are generator functions. A state is not usually
-used directly but rather handled by a state machine like the one implemented
-in state_machine(). A state machine is a state that handles state transitions
-and dispaches execution to the currently active state. This way states can be
-nested.
-
-The skeleton_state() below shows a skeleton implementation
-for a typical state. A state accepts 3 parameters: an application specific
-context, an unique identifier for the state in the transition table
-of the parent state machine and an event. All yield statements in a state
-must yield the same 3 parameters and update the 3 parameters with the value
-returned by the yield statement like this ``ctx, state_id, evt =
-yield (ctx, state_id, evt)``.
-
->>> def skeleton_state(ctx, state_id, evt):
-...     # code executed when entering the state
-...     try:
-...         while True:
-...             # return control to the parent state machine
-...             ctx, state_id, evt = yield (ctx, state_id, evt)
-...
-...             #
-...             # code that executes every time an event is received
-...             #
-...
-...     finally:
-...         # code executed when exiting the state
-...         pass
-
-The state_machine() generator accepts an application specific context which
-will be passed to each state, a state factory function called each time
-an instance of a state is created (this occurs right before entering the
-state) and a transition function called to retrieve the unique ID of
-the next state given the current state ID and the event. The transition
-function is first called with a (state_id, event) tuple of (None, None)
-in order to retrieve the initial state ID. When the transition function
-returns None the state machine has reached its final state and stops.
-
-run_sm() is used to run a state machine to completion. The optional callback
-function parameter is invoked for each event and the optional val parameter
-is useful for resuming execution of a state machine. The callback function
-must return a tuple containing the context, state ID and event parameters,
-the values returned can be different from the values it was passed.
-The callback function can raise StopIteration() to indicate that the run_sm()
-should exit. run_sm() returns the last valid context, state ID and event
-tuple.
-
-state_machine_from_class() returns a state machine instance initialised using
-the `state_factory` and `transition` methods of the class.
 
 ============================================================================
 
