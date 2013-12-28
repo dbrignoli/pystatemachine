@@ -4,7 +4,6 @@
 
 .. codeauthor:: Delio Brignoli <brignoli.delio@gmail.com>
 
-
 """
 
 import unittest
@@ -14,11 +13,9 @@ def state_machine(state_factory, transition_func):
     """Return a state machine generator function."""
     def sm(ctx, state_id=None, evt=None):
         state = None
-        #print ctx, (state_id, evt)
         try:
             while True:
                 next_state_id = transition_func(ctx, (state_id, evt))
-                #print ctx, (state_id, evt), next_state_id
                 if next_state_id is None:
                     break
                 try:
