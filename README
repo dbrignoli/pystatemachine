@@ -29,7 +29,7 @@ Let's start by looking at a simple usage example:
 Define a list of states and some events we want to occur in sequence. The
 'test' event does not effect the state, while 'up and 'down' change the the
 state to the next one up or down respectively.
->>> from state import *
+>>> from smachine import *
 >>> states = ['freezing', 'cold', 'cool', 'warm', 'hot']
 >>> event_list = ['up', 'test', 'up', 'up', 'down']
 
