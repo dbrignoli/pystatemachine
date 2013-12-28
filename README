@@ -78,7 +78,7 @@ should exit. run_sm() returns the last valid context, state ID and event
 tuple.
 
 state_machine_from_class() returns a state machine instance initialised using
-the `state_factory` and `transition` methods of the class.
+the ``state_factory`` and ``transition`` methods of the class.
 
 
 Tutorial
@@ -97,10 +97,10 @@ as follows:
 ...     finally:
 ...         print "Exiting state:", state_id
 
-The state factory function always returns an instance of `state_ex2` and
+The state factory function always returns an instance of ``state_ex2`` and
 the transition function moves between states (identified by increasing
-integers) when the 'n' event is received, stays in the current state when
-the 'x' event is received and terminates when 'e' is received
+integers) when the ``n`` event is received, stays in the current state when
+the ``x`` event is received and terminates when ``e`` is received
 
 >>> s_f = lambda c,n,e: state_ex2(c,n,e)
 >>> def t_f(c, t):
@@ -118,7 +118,7 @@ The state machine is created passing a null context
 
 >>> sm = smm.state_machine(s_f, t_f)(None)
 
-and then run using the 'xnxnxne' sequence of events
+and then run using the ``xnxnxne`` sequence of events
 
 >>> l = list(smm.iter_sm(sm, iter('xn'*3+'e')))
 Entering state: 1
@@ -134,7 +134,7 @@ Entering state: 4
 Exiting state: 4
 
 Define a list of states and some events we want to occur in sequence. The
-'test' event does not effect the state, while 'up and 'down' change the the
+``test`` event does not effect the state, while ``up`` and ``down`` change the the
 state to the next one up or down respectively.
 >>> states = ['freezing', 'cold', 'cool', 'warm', 'hot']
 >>> event_list = ['up', 'test', 'up', 'up', 'down']
