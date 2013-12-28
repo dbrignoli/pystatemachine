@@ -29,7 +29,7 @@ Let's start by looking at a simple usage example:
 Define a list of states and some events we want to occur in sequence. The
 'test' event does not effect the state, while 'up and 'down' change the the
 state to the next one up or down respectively.
->>> from smachine import *
+>>> import smachine as smm
 >>> states = ['freezing', 'cold', 'cool', 'warm', 'hot']
 >>> event_list = ['up', 'test', 'up', 'up', 'down']
 
@@ -80,8 +80,8 @@ use state_machine_from_class()
 ...
 
 The event_list is passed as 'context' for the state machine
->>> sm = state_machine_from_class(StateMachineClassEx1)(event_list)
->>> end_state = run_sm(sm, StateMachineClassEx1.callback)
+>>> sm = smm.state_machine_from_class(StateMachineClassEx1)(event_list)
+>>> end_state = smm.run_sm(sm, StateMachineClassEx1.callback)
 (None, None) -> cool
 ('cool', 'up') -> warm
 ('warm', 'test') -> warm
@@ -163,9 +163,9 @@ the `state_factory` and `transition` methods of the class.
 ...         }
 ...         return tt.get(t, s)
 ...
->>> m1 = state_machine_from_class(SimpleSM1)
->>> m2 = state_machine_from_class(SimpleSM1)
->>> m3 = state_machine_from_class(SimpleSM1)
+>>> m1 = smm.state_machine_from_class(SimpleSM1)
+>>> m2 = smm.state_machine_from_class(SimpleSM1)
+>>> m3 = smm.state_machine_from_class(SimpleSM1)
 >>> tt = {
 ...     (None, None): 'm1',
 ...     ('m1', None): 'm2',
@@ -179,8 +179,8 @@ the `state_factory` and `transition` methods of the class.
 ... }
 >>> s_f = lambda c,n,e: s[n](c,None,None)
 >>> t_f = lambda c,t: tt.get(t, t[0])
->>> sm = state_machine(s_f, t_f)(None)
->>> for val in iter_sm(sm, iter('n'*20)):
+>>> sm = smm.state_machine(s_f, t_f)(None)
+>>> for val in smm.iter_sm(sm, iter('n'*20)):
 ...     print (val[1], val[2])
 ...
 (['-', 's1', 'm1'], None)
@@ -209,8 +209,8 @@ the `state_factory` and `transition` methods of the class.
 ...         yield (c, s, e)
 ...
 >>> e = ['lock', 'open', 'unlock', 'open', 'close']
->>> sm = state_machine(s_f, t_f)(None)
->>> l = [val for val in print_transitions(iter_sm(sm, iter(e)))]
+>>> sm = smm.state_machine(s_f, t_f)(None)
+>>> l = [val for val in print_transitions(smm.iter_sm(sm, iter(e)))]
 (None, None) -> closed
 ('closed', 'lock') -> locked
 ('locked', 'open') -> locked
@@ -227,8 +227,8 @@ the `state_factory` and `transition` methods of the class.
 ...     return ctx, state_id, ctx['evt_src'].next()
 ...
 >>> ctx = dict([('evt_src', iter(e)), ('last_state', None)])
->>> sm = state_machine(s_f, t_f)(ctx)
->>> val = run_sm(sm, cb)
+>>> sm = smm.state_machine(s_f, t_f)(ctx)
+>>> val = smm.run_sm(sm, cb)
 (None, None) -> closed
 ('closed', 'lock') -> locked
 ('locked', 'open') -> locked
@@ -332,7 +332,7 @@ the `state_factory` and `transition` methods of the class.
 ...     @classmethod
 ...     def state_factory(cls, c, n, e):
 ...         if n == 'on':
-...             return state_machine_from_class(PocketCalcInnerSM)(c,n,e)
+...             return smm.state_machine_from_class(PocketCalcInnerSM)(c,n,e)
 ...         return getattr(cls, n)(c,n,e)
 ...
 ...     @staticmethod
@@ -350,10 +350,10 @@ the `state_factory` and `transition` methods of the class.
 ...         c, _, e = yield (c, [s], e)
 ...
 >>> ctx = dict()
->>> pc_sm = state_machine_from_class(PocketCalcOuterSM)(ctx)
+>>> pc_sm = smm.state_machine_from_class(PocketCalcOuterSM)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
->>> l = [val for val in iter_sm(pc_sm, iter(e))]
+>>> l = [val for val in smm.iter_sm(pc_sm, iter(e))]
  0 2 + 3 5 - 1 4 0
 >>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
->>> l = [val for val in iter_sm(pc_sm, iter(e), val = l[-1])]
+>>> l = [val for val in smm.iter_sm(pc_sm, iter(e), val = l[-1])]
  0 2 * 3 6 / 2 3 + 1 13 16
