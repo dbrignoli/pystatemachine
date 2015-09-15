@@ -34,7 +34,7 @@ Overview
 State and state machines are generator functions. A state is not usually
 used directly but rather handled by a state machine like the one implemented
 in state_machine(). A state machine is a state that handles state transitions
-and dispaches execution to the currently active state. This way states can be
+and dispatches execution to the currently active state. This way states can be
 nested.
 
 The skeleton_state() below shows a skeleton implementation
@@ -77,7 +77,7 @@ The callback function can raise StopIteration() to indicate that the run_sm()
 should exit. run_sm() returns the last valid context, state ID and event
 tuple.
 
-state_machine_from_class() returns a state machine instance initialised using
+state_machine_from_class() returns a state machine instance initialized using
 the ``state_factory`` and ``transition`` methods of the class.
 
 
@@ -163,7 +163,7 @@ use state_machine_from_class()
 ...
 ...     @staticmethod
 ...     def state_factory(ctx, name, evt):
-...         # Return the same implementaton for every state
+...         # Return the same implementation for every state
 ...         return state_ex1(ctx, name, evt)
 ...
 ...     @staticmethod
@@ -209,7 +209,7 @@ The event_list is passed as 'context' for the state machine
 ...             ctx, state_id, evt = yield (ctx, ['-'], evt)
 ...     @staticmethod
 ...     def state_factory(ctx, name, evt):
-...         # Return the same implementaton for every state
+...         # Return the same implementation for every state
 ...         return SimpleSM1.state(ctx, name, evt)
 ...     @staticmethod
 ...     def transition(ctx, t):
