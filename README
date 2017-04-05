@@ -42,15 +42,15 @@ for a typical state. A state accepts 3 parameters: an application specific
 context, an unique identifier for the state in the transition table
 of the parent state machine and an event. All yield statements in a state
 must yield the same 3 parameters and update the 3 parameters with the value
-returned by the yield statement like this ``ctx, state_id, evt =
-yield (ctx, state_id, evt)``.
+returned by the yield statement like this ``ctx, state_id_vec, evt =
+yield (ctx, state_id_vec, evt)``.
 
 >>> def skeleton_state(ctx, state_id, evt):
 ...     # code executed when entering the state
 ...     try:
 ...         while True:
 ...             # return control to the parent state machine
-...             ctx, state_id, evt = yield (ctx, [state_id], evt)
+...             ctx, state_id_vec, evt = yield ctx, state_id_vec, evt
 ...             #
 ...             # code that executes every time an event is received
 ...             #
@@ -88,14 +88,14 @@ Let's start by looking at a simple usage example. An example state is defined
 as follows:
 
 >>> import smachine as smm
->>> def state_ex2(ctx, state_id, evt):
-...     print "Entering state:", state_id
+>>> def state_ex2(ctx, state_id_vec, evt):
+...     print "Entering state:", state_id_vec[-1]
 ...     try:
 ...         while True:
-...             ctx, _, evt = yield (ctx, [state_id], evt)
-...             print "Received event", evt, "while in", state_id
+...             ctx, state_id_vec, evt = yield ctx, state_id_vec, evt
+...             print "Received event", evt, "while in", state_id_vec[-1]
 ...     finally:
-...         print "Exiting state:", state_id
+...         print "Exiting state:", state_id_vec[-1]
 
 The state factory function always returns an instance of ``state_ex2`` and
 the transition function moves between states (identified by increasing
@@ -143,9 +143,9 @@ state to the next one up or down respectively.
 A state implementation that simply prints out the last event and current
 state IDs
 
->>> def state_ex1(ctx, state_id, evt):
+>>> def state_ex1(ctx, state_id_vec, evt):
 ...     while True:
-...         ctx, vec, evt = yield (ctx, [state_id], evt)
+...         ctx, vec, evt = yield ctx, state_id_vec, evt
 ...
 
 Wrap callback(), state_factory() and transition() in a class to show how to
@@ -155,16 +155,16 @@ use state_machine_from_class()
 ...     @staticmethod
 ...     def callback(sm, val):
 ...         # Consume the first event and make it the current event
-...         ctx, state_id, evt = val
+...         ctx, state_id_vec, evt = val
 ...         if len(ctx) > 0:
-...             return ctx, state_id, ctx.pop(0)
+...             return ctx, state_id_vec, ctx.pop(0)
 ...         else:
 ...             raise StopIteration()
 ...
 ...     @staticmethod
-...     def state_factory(ctx, name, evt):
+...     def state_factory(ctx, state_id_vec, evt):
 ...         # Return the same implementation for every state
-...         return state_ex1(ctx, name, evt)
+...         return state_ex1(ctx, state_id_vec, evt)
 ...
 ...     @staticmethod
 ...     def transition(ctx, t):
@@ -197,16 +197,16 @@ The event_list is passed as 'context' for the state machine
 ('hot', 'up') -> hot
 ('hot', 'down') -> warm
 >>> end_state
-([], ['warm', 'warm'], 'down')
+([], ('warm',), 'down')
 
 ============================================================================
 
 
 >>> class SimpleSM1(object):
 ...     @staticmethod
-...     def state(ctx, state_id, evt):
+...     def state(ctx, state_id_vec, evt):
 ...         while True:
-...             ctx, state_id, evt = yield (ctx, ['-'], evt)
+...             ctx, state_id_vec, evt = yield ctx, state_id_vec, evt
 ...     @staticmethod
 ...     def state_factory(ctx, name, evt):
 ...         # Return the same implementation for every state
@@ -219,7 +219,7 @@ The event_list is passed as 'context' for the state machine
 ...           ('s1', 'n'): 's2',
 ...           ('s2', 'n'): None,
 ...         }
-...         return tt.get(t, s)
+...         return tt.get(t, 's1')
 ...
 >>> m1 = smm.state_machine_from_class(SimpleSM1)
 >>> m2 = smm.state_machine_from_class(SimpleSM1)
@@ -235,18 +235,18 @@ The event_list is passed as 'context' for the state machine
 ...     'm2': m2,
 ...     'm3': m3,
 ... }
->>> s_f = lambda c,n,e: s[n](c,None,None)
+>>> s_f = lambda c,n,e: s[n[-1]](c, n, e)
 >>> t_f = lambda c,t: tt.get(t, t[0])
 >>> sm = smm.state_machine(s_f, t_f)(None)
 >>> for val in smm.iter_sm(sm, iter('n'*20)):
 ...     print (val[1], val[2])
 ...
-(['-', 's1', 'm1'], None)
-(['-', 's2', 'm1'], 'n')
-(['-', 's1', 'm2'], None)
-(['-', 's2', 'm2'], 'n')
-(['-', 's1', 'm3'], None)
-(['-', 's2', 'm3'], 'n')
+(('m1', 's1'), None)
+(('m1', 's2'), 'n')
+(('m2', 's1'), None)
+(('m2', 's2'), 'n')
+(('m3', 's1'), None)
+(('m3', 's2'), 'n')
 
 
 >>> tt = {
@@ -264,7 +264,7 @@ The event_list is passed as 'context' for the state machine
 ...         c, s, e = iter.next()
 ...         print (old_s, e), '->', s[-1]
 ...         old_s = s[-1]
-...         yield (c, s, e)
+...         yield c, s, e
 ...
 >>> e = ['lock', 'open', 'unlock', 'open', 'close']
 >>> sm = smm.state_machine(s_f, t_f)(None)
@@ -326,15 +326,17 @@ The event_list is passed as 'context' for the state machine
 ...
 ...     @classmethod
 ...     def state_factory(cls, c, n, e):
-...         return getattr(cls, n)(c,n,e)
+...         return getattr(cls, n[-1])(c,n,e)
 ...
 ...     @staticmethod
 ...     def op_nd1(c, s, e):
 ...         if e is not None:
 ...             c['op_nd1'] = int(e)
+...         else:
+...             c['op_nd1'] = 0
 ...         while True:
 ...             display(c['op_nd1'])
-...             c, _, e = yield (c, [s], e)
+...             c, s, e = yield c, s, e
 ...             c['op_nd1'] = c['op_nd1']*10 + int(e)
 ...
 ...     @staticmethod
@@ -342,7 +344,7 @@ The event_list is passed as 'context' for the state machine
 ...         c['op_nd2'] = int(e)
 ...         while True:
 ...             display(c['op_nd2'])
-...             c, _, e = yield (c, [s], e)
+...             c, s, e = yield c, s, e
 ...             c['op_nd2'] = c['op_nd2']*10 + int(e)
 ...
 ...     @staticmethod
@@ -362,7 +364,7 @@ The event_list is passed as 'context' for the state machine
 ...                 c['op_tor'] = operator.mul
 ...             else:
 ...                 raise StopIteration
-...             c, _, e = yield (c, [s], e)
+...             c, s, e = yield c, s, e
 ...
 ...     @staticmethod
 ...     def result(c, s, e):
@@ -370,7 +372,7 @@ The event_list is passed as 'context' for the state machine
 ...         c['op_tor'] = None
 ...         while True:
 ...             display(c['op_nd1'])
-...             c, _, e = yield (c, [s], e)
+...             c, s, e = yield c, s, e
 ...
 ...
 >>> class PocketCalcOuterSM(object):
@@ -389,14 +391,14 @@ The event_list is passed as 'context' for the state machine
 ...
 ...     @classmethod
 ...     def state_factory(cls, c, n, e):
-...         if n == 'on':
+...         if n[-1] == 'on':
 ...             return smm.state_machine_from_class(PocketCalcInnerSM)(c,n,e)
-...         return getattr(cls, n)(c,n,e)
+...         return getattr(cls, n[-1])(c,n,e)
 ...
 ...     @staticmethod
 ...     def off(c, s, e):
 ...         while True:
-...             c, _, e = yield (c, [s], e)
+...             c, s, e = yield c, s, e
 ...
 ...     @staticmethod
 ...     def reset(c, s, e):
@@ -405,12 +407,12 @@ The event_list is passed as 'context' for the state machine
 ...         c['op_tor'] = None
 ...         return
 ...         # yield statement is necessary to make this a generator
-...         c, _, e = yield (c, [s], e)
+...         c, s, e = yield c, s, e
 ...
 >>> ctx = dict()
 >>> pc_sm = smm.state_machine_from_class(PocketCalcOuterSM)(ctx)
 >>> e = ['p-on', '2', '+', '3', '=', '-', '1', '=', 'p-on', 'p-off']
->>> l = [val for val in smm.iter_sm(pc_sm, iter(e))]
+>>> l = [(dict(val[0]),)+val[1:] for val in smm.iter_sm(pc_sm, iter(e))]
  0 2 + 3 5 - 1 4 0
 >>> e = ['p-on', '2', '*', '3', '/', '2', '+', '1', '3', '=', 'p-off']
 >>> l = [val for val in smm.iter_sm(pc_sm, iter(e), val = l[-1])]

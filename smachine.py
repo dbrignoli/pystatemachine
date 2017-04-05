@@ -25,26 +25,31 @@ __status__ = 'Development'
 
 def state_machine(state_factory, transition_func):
     """Return a state machine generator function."""
-    def sm(ctx, state_id=None, evt=None):
+    def sm(ctx, s_id_vec=tuple(), evt=None):
         state = None
+        state_id = s_id_vec[-1] if s_id_vec else None
         try:
             while True:
                 next_state_id = transition_func(ctx, (state_id, evt))
                 if next_state_id is None:
                     break
                 try:
-                    if (next_state_id != state_id):
+                    if (next_state_id != state_id or state is None):
                         if state is not None:
                             state.close()
+                            s_id_vec = s_id_vec[:-1]
+                            state = None
                         state_id = next_state_id
-                        state = state_factory(ctx, state_id, evt)
+                        s_id_vec = s_id_vec + (state_id,)
+                        state = state_factory(ctx, s_id_vec, evt)
                         ctx, s_id_vec, evt = state.next()
                     else:
-                        ctx, s_id_vec, evt = state.send((ctx, state_id, evt))
+                        ctx, s_id_vec, evt = state.send((ctx, s_id_vec, evt))
                 except StopIteration:
                     evt = None
+                    s_id_vec = s_id_vec[:-1]
                     continue
-                ctx, _, evt = yield (ctx, s_id_vec + [state_id], evt)
+                ctx, _, evt = yield ctx, s_id_vec, evt
                 if state_id is None:
                     break
         finally:
