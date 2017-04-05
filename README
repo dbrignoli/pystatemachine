@@ -25,7 +25,7 @@ The state_machine_from_class() function can be used to create
 a state machine instance form a class encapsulating the state factory and
 state transition functions.
 
-Get the source `here <http://github.com/dbrignoli/pystatemachine>`_.
+Get the source `here <http://github.com/dxxb/pystatemachine>`_.
 
 
 Overview
